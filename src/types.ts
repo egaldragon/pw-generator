@@ -1,12 +1,13 @@
 // ─── Domain Types ────────────────────────────────────────────────
 
 export interface FormField {
-  id: string;          // HTML id attribute
-  name: string;        // input name attribute
-  label: string;       // Label text (cleaned, e.g. "Name")
-  type: string;        // text | password | email | checkbox | textarea | select
-  required: boolean;
-  options?: string[];  // for <select>
+  id: string;           // HTML id attribute
+  name: string;         // input name attribute
+  label: string;        // Label text (cleaned, e.g. "Name")
+  type: string;         // text | password | email | checkbox | textarea | select
+  required: boolean;    // true if NOT NULL in migration (server-side required)
+  htmlRequired: boolean; // true only if HTML `required` attribute present — used for toHaveAttribute('required') test
+  options?: string[];   // for <select>
 }
 
 export interface ParsedView {

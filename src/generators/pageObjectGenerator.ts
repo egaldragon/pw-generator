@@ -192,7 +192,8 @@ export function generateResourcePage(resource: ResourceGroup): string {
     lines.push(`    await expect(this.${locatorName}).toBeVisible();`);
     lines.push(`  }`);
     lines.push(``);
-    if (f.required) {
+    // Generate assertRequired only for input fields (not textarea) that are required
+    if (f.required && f.type !== "textarea") {
       lines.push(`  async assert${methodSuffix}Required(): Promise<void> {`);
       lines.push(`    await expect(this.${locatorName}).toHaveAttribute('required');`);
       lines.push(`  }`);

@@ -98,7 +98,7 @@ export function extractFormFields(content: string): FormField[] {
     const required = /\brequired\b/.test(attrs);
 
     if (!fields.find(f => f.name === name)) {
-      fields.push({ id: id || name, name: name || id, label, type, required });
+      fields.push({ id: id || name, name: name || id, label, type, required, htmlRequired: required });
     }
   }
 
@@ -113,7 +113,7 @@ export function extractFormFields(content: string): FormField[] {
     const label = labelMap.get(key) || humanize(key);
     const required = /\brequired\b/.test(attrs);
     if (!fields.find(f => f.name === name)) {
-      fields.push({ id: id || name, name: name || id, label, type: 'textarea', required });
+      fields.push({ id: id || name, name: name || id, label, type: 'textarea', required, htmlRequired: required });
     }
   }
 
@@ -128,7 +128,7 @@ export function extractFormFields(content: string): FormField[] {
     const label = labelMap.get(key) || humanize(key);
     const required = /\brequired\b/.test(attrs);
     if (!fields.find(f => f.name === name)) {
-      fields.push({ id: id || name, name: name || id, label, type: 'select', required });
+      fields.push({ id: id || name, name: name || id, label, type: 'select', required, htmlRequired: required });
     }
   }
 

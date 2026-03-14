@@ -125,7 +125,9 @@ export function generateResourceSpec(resource: ResourceGroup): string {
     lines.push(`  });`);
     lines.push(``);
 
-    for (const f of textFields.filter(f => f.required)) {
+    // Only generate required test if field has HTML `required` attribute (not just server-side)
+    // Generate required test: htmlRequired OR (server-side required AND not textarea)
+    for (const f of textFields.filter(f => f.htmlRequired || (f.required && f.type !== "textarea"))) {
       lines.push(`  test('field ${f.label.replace(/:$/, '')} harus bersifat required', async () => {`);
       lines.push(`    await ${singular}Page.assert${capitalize(camelCase(f.name))}Required();`);
       lines.push(`  });`);
@@ -225,7 +227,8 @@ export function generateResourceSpec(resource: ResourceGroup): string {
         const selField = selectFields.find(f => f.name === rel.field || f.name === rel.field);
         const locatorName = `${camelCase((selField?.name ?? rel.field).replace(/_id$/, ''))}Select`;
         lines.push(`    if (await ${singular}Page.${locatorName}.isVisible()) {`);
-        lines.push(`      await ${singular}Page.fill${capitalize(camelCase((selField?.name ?? rel.field).replace(/_id$/, '')))}(extra${relClass}Name);`);
+        // Use full field name (camelCase of category_id = categoryId) to match pageObjectGenerator method naming
+        lines.push(`      await ${singular}Page.fill${capitalize(camelCase(selField?.name ?? rel.field))}(extra${relClass}Name);`);
         lines.push(`    }`);
       }
       lines.push(`    await ${singular}Page.clickSubmit();`);
