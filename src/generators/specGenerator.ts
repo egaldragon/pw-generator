@@ -9,6 +9,7 @@ export function generateResourceSpec(resource: ResourceGroup): string {
   const constName = name.toUpperCase();
 
   const textFields = fields.filter(f => f.type !== 'select' && !f.name.endsWith('_id'));
+  const selectFields = fields.filter(f => f.type === 'select' || f.name.endsWith('_id'));
   const primaryField = textFields[0];
 
   // FIX: use proper singularize (handles -ies→-y, -ses, -s)
@@ -64,16 +65,23 @@ export function generateResourceSpec(resource: ResourceGroup): string {
     lines.push(`  });`);
     lines.push(``);
   }
+
   const indexView = resource.views.find(v => v.viewType === 'index');
+  // Named columns from <th> — skip columns that are relation display names (FK labels)
+  const relationLabels = new Set(relations.map(r => r.label.replace(/:$/, '').toLowerCase()));
   if (indexView) {
     for (const col of indexView.tableColumns) {
       if (!col.trim()) continue;
+      // Skip if this column is just displaying a related resource (e.g. 'Category' in posts)
+      if (relationLabels.has(col.toLowerCase())) continue;
       lines.push(`  test('tabel harus memiliki kolom ${col}', async ({ page }) => {`);
       lines.push(`    await expect(page.locator('table th').filter({ hasText: /${col}/i })).toBeVisible();`);
       lines.push(`  });`);
       lines.push(``);
     }
   }
+
+
   lines.push(`});`);
   lines.push(``);
 
@@ -90,32 +98,48 @@ export function generateResourceSpec(resource: ResourceGroup): string {
     lines.push(`    await ${singular}Page.gotoCreate();`);
     lines.push(`  });`);
     lines.push(``);
+
+    // Text fields
     for (const f of textFields) {
       lines.push(`  test('harus menampilkan field ${f.label.replace(/:$/, '')}', async () => {`);
       lines.push(`    await ${singular}Page.assert${capitalize(camelCase(f.name))}InputVisible();`);
       lines.push(`  });`);
       lines.push(``);
     }
-    lines.push(`  test('harus menampilkan tombol Save', async () => {`);
+    // FIX: Select/dropdown fields also get a visibility test in Create UI
+    for (const f of selectFields) {
+      const locatorName = `${camelCase(f.name.replace(/_id$/, ''))}Select`;
+      const label = f.label.replace(/:$/, '');
+      lines.push(`  test('harus menampilkan dropdown ${label}', async () => {`);
+      lines.push(`    await ${singular}Page.assert${capitalize(camelCase(f.name.replace(/_id$/, '')))}SelectVisible();`);
+      lines.push(`  });`);
+      lines.push(``);
+    }
+
+    lines.push(`  test('harus menampilkan tombol Submit', async () => {`);
     lines.push(`    await ${singular}Page.assertSubmitButtonVisible();`);
     lines.push(`  });`);
     lines.push(``);
+    lines.push(`  test('tombol Submit harus bisa diklik', async () => {`);
+    lines.push(`    await expect(${singular}Page.submitButton).toBeEnabled();`);
+    lines.push(`  });`);
+    lines.push(``);
+
     for (const f of textFields.filter(f => f.required)) {
       lines.push(`  test('field ${f.label.replace(/:$/, '')} harus bersifat required', async () => {`);
       lines.push(`    await ${singular}Page.assert${capitalize(camelCase(f.name))}Required();`);
       lines.push(`  });`);
       lines.push(``);
     }
-    lines.push(`  test('tombol Submit harus bisa diklik', async () => {`);
-    lines.push(`    await expect(${singular}Page.submitButton).toBeEnabled();`);
-    lines.push(`  });`);
-    lines.push(``);
-    if (primaryField) {
-      lines.push(`  test('field ${primaryField.label.replace(/:$/, '')} harus kosong saat pertama dibuka', async () => {`);
-      lines.push(`    await expect(${singular}Page.${camelCase(primaryField.name)}Input).toHaveValue('');`);
+
+    // FIX: empty check for each text field (not just primary)
+    for (const f of textFields) {
+      lines.push(`  test('field ${f.label.replace(/:$/, '')} harus kosong saat pertama dibuka', async () => {`);
+      lines.push(`    await expect(${singular}Page.${camelCase(f.name)}Input).toHaveValue('');`);
       lines.push(`  });`);
       lines.push(``);
     }
+
     lines.push(`});`);
     lines.push(``);
 
@@ -143,7 +167,9 @@ export function generateResourceSpec(resource: ResourceGroup): string {
     }
     lines.push(`  });`);
     lines.push(``);
+
     const createCallArgs = buildSpecCreateArgs(fields, relations, singular);
+
     lines.push(`  test('harus berhasil membuat ${singular} baru dengan data valid', async () => {`);
     if (primaryField) {
       lines.push(`    const unique${capitalize(camelCase(primaryField.name))} = \`${capitalize(singular)}-\${Date.now()}\`;`);
@@ -155,17 +181,20 @@ export function generateResourceSpec(resource: ResourceGroup): string {
     }
     lines.push(`  });`);
     lines.push(``);
+
     lines.push(`  test('harus menampilkan error jika field required dikosongkan', async () => {`);
     lines.push(`    await ${singular}Page.gotoCreate();`);
     lines.push(`    await ${singular}Page.clickSubmit();`);
     lines.push(`    await ${singular}Page.assertOnCreatePage();`);
     lines.push(`  });`);
     lines.push(``);
+
     lines.push(`  test('setelah berhasil dibuat harus redirect ke halaman index', async () => {`);
     lines.push(`    await ${singular}Page.create${className}(${createCallArgs('redirect')});`);
     lines.push(`    await ${singular}Page.assertOnIndexPage();`);
     lines.push(`  });`);
     lines.push(``);
+
     lines.push(`  test('jumlah baris tabel harus bertambah setelah membuat ${singular} baru', async () => {`);
     lines.push(`    await ${singular}Page.gotoIndex();`);
     lines.push(`    const countBefore = await ${singular}Page.getRowCount();`);
@@ -175,12 +204,42 @@ export function generateResourceSpec(resource: ResourceGroup): string {
     lines.push(`    expect(countAfter).toBe(countBefore + 1);`);
     lines.push(`  });`);
     lines.push(``);
+
+    // FIX: extra test for create with select/relation — only when there are select fields
+    if (selectFields.length > 0) {
+      lines.push(`  test('harus berhasil membuat ${singular} dengan memilih ${selectFields[0].label.replace(/:$/, '')}', async ({ page }) => {`);
+      for (const rel of relations) {
+        const relSingular = singularize(rel.relatedResource);
+        const relClass = capitalize(relSingular);
+        lines.push(`    const extra${relClass}Page = new ${relClass}Page(page);`);
+        lines.push(`    const extra${relClass}Name = \`${relClass}-\${Date.now()}\`;`);
+        lines.push(`    await extra${relClass}Page.create${relClass}(extra${relClass}Name);`);
+      }
+      lines.push(`    await ${singular}Page.gotoCreate();`);
+      for (const f of textFields) {
+        lines.push(`    await ${singular}Page.fill${capitalize(camelCase(f.name))}(\`${capitalize(singular)}-\${Date.now()}\`);`);
+      }
+      for (const rel of relations) {
+        const relSingular = singularize(rel.relatedResource);
+        const relClass = capitalize(relSingular);
+        const selField = selectFields.find(f => f.name === rel.field || f.name === rel.field);
+        const locatorName = `${camelCase((selField?.name ?? rel.field).replace(/_id$/, ''))}Select`;
+        lines.push(`    if (await ${singular}Page.${locatorName}.isVisible()) {`);
+        lines.push(`      await ${singular}Page.fill${capitalize(camelCase((selField?.name ?? rel.field).replace(/_id$/, '')))}(extra${relClass}Name);`);
+        lines.push(`    }`);
+      }
+      lines.push(`    await ${singular}Page.clickSubmit();`);
+      lines.push(`    await ${singular}Page.assertOnIndexPage();`);
+      lines.push(`  });`);
+      lines.push(``);
+    }
+
     lines.push(`});`);
     lines.push(``);
   }
 
   if (hasEdit && primaryField) {
-    // helper: rel setup block reused in Groups 4, 5, 6, 7
+    // rel setup reused in groups 4, 5, 6, 7
     const relSetupBlock = relations.map(rel => {
       const relSingular = singularize(rel.relatedResource);
       const relClass = capitalize(relSingular);
@@ -215,11 +274,21 @@ export function generateResourceSpec(resource: ResourceGroup): string {
       lines.push(`  });`);
       lines.push(``);
     }
+    // FIX: dropdown visibility test in Edit UI too
+    for (const f of selectFields) {
+      const label = f.label.replace(/:$/, '');
+      lines.push(`  test('halaman edit harus menampilkan dropdown ${label}', async () => {`);
+      lines.push(`    await ${singular}Page.assert${capitalize(camelCase(f.name.replace(/_id$/, '')))}SelectVisible();`);
+      lines.push(`  });`);
+      lines.push(``);
+    }
     lines.push(`  test('field ${primaryField.label.replace(/:$/, '')} harus terisi dengan nilai saat ini', async () => {`);
     lines.push(`    await expect(${singular}Page.${camelCase(primaryField.name)}Input).toHaveValue(test${className}Name);`);
     lines.push(`  });`);
     lines.push(``);
-    lines.push(`  test('harus menampilkan tombol Save', async () => {`);
+    // FIX: save button visible AND enabled in one test (matches OG pattern)
+    lines.push(`  test('harus menampilkan tombol Save dan bisa diklik', async () => {`);
+    lines.push(`    await expect(${singular}Page.submitButton).toBeVisible();`);
     lines.push(`    await ${singular}Page.assertSubmitButtonVisible();`);
     lines.push(`  });`);
     lines.push(``);
@@ -271,7 +340,7 @@ export function generateResourceSpec(resource: ResourceGroup): string {
     lines.push(`  test.beforeEach(async ({ page }) => {`);
     lines.push(`    ${singular}Page = new ${pageName}(page);`);
     lines.push(`    test${className}Name = \`UI-Delete-\${Date.now()}\`;`);
-    lines.push(...relSetupBlock);  // FIX: was completely missing in Group 6
+    lines.push(...relSetupBlock);
     lines.push(`    await ${singular}Page.create${className}(${buildSpecCreateArgsForEdit(fields, relations, className)});`);
     lines.push(`    await ${singular}Page.assertOnIndexPage();`);
     lines.push(`  });`);
@@ -300,7 +369,7 @@ export function generateResourceSpec(resource: ResourceGroup): string {
     lines.push(`  test.beforeEach(async ({ page }) => {`);
     lines.push(`    ${singular}Page = new ${pageName}(page);`);
     lines.push(`    test${className}Name = \`Func-Delete-\${Date.now()}\`;`);
-    lines.push(...relSetupBlock);  // FIX: was completely missing in Group 7
+    lines.push(...relSetupBlock);
     lines.push(`    await ${singular}Page.create${className}(${buildSpecCreateArgsForEdit(fields, relations, className)});`);
     lines.push(`    await ${singular}Page.assertOnIndexPage();`);
     lines.push(`  });`);
@@ -321,7 +390,6 @@ export function generateResourceSpec(resource: ResourceGroup): string {
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-// Proper singularize: categories→category, statuses→status, posts→post
 function singularize(name: string): string {
   if (name.endsWith('ies')) return name.slice(0, -3) + 'y';
   if (name.endsWith('ses')) return name.slice(0, -2);
@@ -329,7 +397,6 @@ function singularize(name: string): string {
   return name;
 }
 
-// Args for create call in Group 3 (uses testXxxName from outer let)
 function buildSpecCreateArgs(
   fields: FormField[],
   relations: { field: string; relatedResource: string; label: string }[],
@@ -354,13 +421,12 @@ function buildSpecCreateArgs(
   };
 }
 
-// Args for create call in Groups 4–7 (uses relXxxName from const, testXxxName from let)
 function buildSpecCreateArgsForEdit(
   fields: FormField[],
   relations: { field: string; relatedResource: string; label: string }[],
   className: string
 ): string {
-  const textIdx = fields.filter(f => f.type !== 'select' && !f.name.endsWith('_id'));
+  const textOnly = fields.filter(f => f.type !== 'select' && !f.name.endsWith('_id'));
   return fields.map(f => {
     if (f.type === 'select' || f.name.endsWith('_id')) {
       const rel = relations.find(r => r.field === f.name);
@@ -370,7 +436,7 @@ function buildSpecCreateArgsForEdit(
       }
       return `'test'`;
     }
-    if (textIdx.indexOf(f) === 0) {
+    if (textOnly.indexOf(f) === 0) {
       return `test${className}Name`;
     }
     return `\`text-\${Date.now()}\``;

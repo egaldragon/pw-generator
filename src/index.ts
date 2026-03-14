@@ -7,9 +7,10 @@ import { analyzeProject } from './analyzer';
 import { generateFixtures } from './generators/fixturesGenerator';
 import { generateBasePage } from './generators/basePageGenerator';
 import { generateResourcePage } from './generators/pageObjectGenerator';
-import { generateLoginPage, generateRegisterPage, generateDashboardPage } from './generators/authPageGenerator';
+import { generateLoginPage, generateRegisterPage, generateDashboardPage, generateProfilePage } from './generators/authPageGenerator';
 import { generateResourceSpec } from './generators/specGenerator';
 import { generateAuthSpec } from './generators/authSpecGenerator';
+import { generateProfileSpec } from './generators/profileSpecGenerator';
 import { generatePlaywrightConfig, generatePackageJson, generateTsConfig } from './generators/configGenerator';
 import { GeneratorOptions } from './types';
 
@@ -109,6 +110,12 @@ function main() {
     write('pages/RegisterPage.ts', generateRegisterPage(registerView));
     write('pages/DashboardPage.ts', generateDashboardPage());
     write('tests/auth.spec.ts', generateAuthSpec());
+  }
+
+  // Profile Page & Spec
+  if (analysis.hasProfile) {
+    write('pages/ProfilePage.ts', generateProfilePage());
+    write('tests/profile.spec.ts', generateProfileSpec());
   }
 
   // ── Resource Pages & Specs ──

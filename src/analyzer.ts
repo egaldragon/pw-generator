@@ -66,14 +66,14 @@ export function analyzeProject(projectPath: string): ProjectAnalysis {
     // Detect foreign key relations
     const relations = detectRelations(allFields, resources);
 
-    // Migration-based nullable detection
+    // Migration NOT NULL = source of truth for required (blade may omit HTML required attr)
     const migration = migrations.find(m => m.tableName === name ||
       m.tableName === `${name}s` || m.tableName === `${name}es`);
     if (migration) {
       for (const field of allFields) {
         const mField = migration.fields.find(f => f.name === field.name);
         if (mField) {
-          field.required = !mField.nullable && field.required !== false;
+          field.required = !mField.nullable;
           if (mField.foreignKey) {
             field.type = 'select';
           }

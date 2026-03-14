@@ -138,12 +138,19 @@ export function extractFormFields(content: string): FormField[] {
 
 export function extractTableColumns(content: string): string[] {
   const cols: string[] = [];
-  // Extract <th> content
   const thRe = /<th[^>]*>([\s\S]*?)<\/th>/gi;
   let m: RegExpExecArray | null;
   while ((m = thRe.exec(content)) !== null) {
     const text = m[1].replace(/<[^>]+>/g, '').trim();
-    if (text) cols.push(text);
+    if (text) {
+      cols.push(text);
+    } else {
+      // Empty <th></th> — typical Breeze "Actions" column (has Edit/Delete links in tbody)
+      const hasActions = /route\([^)]+\.(edit|destroy)\)/.test(content);
+      if (hasActions && !cols.includes('Actions')) {
+        cols.push('Actions');
+      }
+    }
   }
   return cols;
 }

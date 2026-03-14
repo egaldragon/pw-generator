@@ -200,6 +200,18 @@ export function generateResourcePage(resource: ResourceGroup): string {
     }
   }
 
+  // FIX: add assertXxxSelectVisible for each select field
+  for (const f of selectFields) {
+    const locatorName = fieldToLocatorName(f);
+    const methodSuffix = capitalize(camelCase(f.name.replace(/_id$/, '')));
+    lines.push(`  async assert${methodSuffix}SelectVisible(): Promise<void> {`);
+    lines.push(`    if (await this.${locatorName}.isVisible()) {`);
+    lines.push(`      await expect(this.${locatorName}).toBeVisible();`);
+    lines.push(`    }`);
+    lines.push(`  }`);
+    lines.push(``);
+  }
+
   lines.push(`  async assertSubmitButtonVisible(): Promise<void> {`);
   lines.push(`    await expect(this.submitButton).toBeVisible();`);
   lines.push(`  }`);

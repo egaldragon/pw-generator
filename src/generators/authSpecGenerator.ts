@@ -208,11 +208,11 @@ test.describe('Dashboard — Elemen UI', () => {
     await dashboardPage.assertWelcomeTextVisible();
   });
 
-  test('harus menampilkan tombol Logout', async () => {
-    await dashboardPage.assertLogoutButtonVisible();
+  test('harus menampilkan tombol Logout di dropdown nav', async () => {
+    await dashboardPage.assertLogoutLinkVisible();
   });
 
-  test('harus menampilkan link Profile', async () => {
+  test('harus menampilkan link Profile di dropdown nav', async () => {
     await dashboardPage.assertProfileLinkVisible();
   });
 });
