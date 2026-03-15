@@ -86,4 +86,13 @@ export interface GeneratorOptions {
   language: 'id' | 'en';
   baseUrl: string;
   testUser: { email: string; password: string; name: string };
+  gitea: {
+    enabled: boolean;
+    serverUrl: string;      // e.g. http://gitea:3000
+    appHost: string;        // e.g. host.docker.internal:8000
+    playwrightImage: string; // e.g. mcr.microsoft.com/playwright:v1.49.1-jammy
+    branch: string;         // e.g. main
+    npmCacheVolume: string;  // e.g. playwright-npm-cache
+    reportVolume: string;    // e.g. playwright-report (Docker volume for HTML report)
+  };
 }

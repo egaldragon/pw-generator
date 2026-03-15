@@ -56,10 +56,62 @@ export function generateTsConfig(): string {
       strict: true,
       esModuleInterop: true,
       skipLibCheck: true,
+      outDir: './dist',
       baseUrl: '.',
       paths: {},
     },
     include: ['**/*.ts'],
-    exclude: ['node_modules'],
+    exclude: ['node_modules', 'dist'],
   }, null, 2);
+}
+
+// ─── Gitea Workflow Generator ─────────────────────────────────────
+// Mirrors the working workflow from the existing playwright repo.
+// upload-artifact is intentionally omitted — it relies on
+// ACTIONS_RUNTIME_URL which Gitea sets to localhost:3000,
+// unreachable from inside a container job. No workaround for this
+// env var override works reliably on self-hosted Gitea.
+//
+// Report is instead saved to a named Docker volume (playwright-report)
+// so it persists across runs and can be accessed from the host.
+
+export function generateGiteaWorkflow(opts: GeneratorOptions): string {
+  const { gitea } = opts;
+
+  const lines = [
+    `name: Playwright`,
+    ``,
+    `on:`,
+    `  workflow_dispatch:`,
+    `  push:`,
+    `    branches:`,
+    `      - ${gitea.branch}`,
+    ``,
+    `jobs:`,
+    `  playwright:`,
+    `    runs-on: ubuntu-latest`,
+    `    container:`,
+    `      image: ${gitea.playwrightImage}`,
+    `      options: --add-host gitea:host-gateway --add-host host.docker.internal:host-gateway --mount type=volume,source=${gitea.npmCacheVolume},target=/root/.npm --mount type=volume,source=${gitea.reportVolume},target=/playwright-report`,
+    `    env:`,
+    `      APP_URL: http://${gitea.appHost}`,
+    `      BASE_URL: http://${gitea.appHost}`,
+    `    steps:`,
+    `      - name: Checkout repository`,
+    `        uses: actions/checkout@v4`,
+    `        with:`,
+    `          github-server-url: ${gitea.serverUrl}`,
+    ``,
+    `      - name: Install dependencies`,
+    `        run: npm ci --prefer-offline --no-audit`,
+    ``,
+    `      - name: Run Playwright tests`,
+    `        run: npx playwright test`,
+    ``,
+    `      - name: Save report to volume`,
+    `        if: always()`,
+    `        run: cp -r playwright-report/. /playwright-report/`,
+  ];
+
+  return lines.join('\n') + '\n';
 }
