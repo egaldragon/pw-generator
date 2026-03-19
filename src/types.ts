@@ -1,18 +1,17 @@
-// ─── Domain Types ────────────────────────────────────────────────
+// ─── Domain Types ────────────────────────────────────────────────────────────
 
 export interface FormField {
-  id: string;           // HTML id attribute
-  name: string;         // input name attribute
-  label: string;        // Label text (cleaned, e.g. "Name")
-  type: string;         // text | password | email | checkbox | textarea | select
-  required: boolean;    // true if NOT NULL in migration (server-side required)
-  htmlRequired: boolean; // true only if HTML `required` attribute present — used for toHaveAttribute('required') test
-  options?: string[];   // for <select>
+  id: string;
+  name: string;
+  label: string;
+  type: 'text' | 'password' | 'email' | 'checkbox' | 'textarea' | 'select' | string;
+  required: boolean;      // NOT NULL in migration (server-side required)
+  htmlRequired: boolean;  // has HTML `required` attribute
 }
 
 export interface ParsedView {
   path: string;
-  resourceName: string;  // e.g. "categories"
+  resourceName: string;
   viewType: 'index' | 'create' | 'edit' | 'show' | 'auth' | 'profile' | 'dashboard' | 'other';
   fields: FormField[];
   tableColumns: string[];
@@ -20,26 +19,29 @@ export interface ParsedView {
   hasDeleteButton: boolean;
   hasEditLink: boolean;
   hasCreateLink: boolean;
-  formAction?: string;
   buttonLabels: string[];
   pageTitle: string;
-  createLinkText?: string;
 }
 
 export interface RouteInfo {
-  name: string;         // e.g. "categories.index"
-  method: string;       // GET | POST | PUT | PATCH | DELETE
-  uri: string;          // e.g. "/categories"
-  controller?: string;
+  name: string;
+  method: string;
+  uri: string;
   action?: string;
   middleware: string[];
   isResource: boolean;
 }
 
+export interface RelationInfo {
+  field: string;
+  relatedResource: string;
+  label: string;
+}
+
 export interface ResourceGroup {
-  name: string;              // e.g. "categories"
-  singular: string;          // e.g. "category"
-  className: string;         // e.g. "Category"
+  name: string;
+  singular: string;
+  className: string;
   routes: RouteInfo[];
   views: ParsedView[];
   fields: FormField[];
@@ -51,12 +53,6 @@ export interface ResourceGroup {
   hasDelete: boolean;
   hasShow: boolean;
   relations: RelationInfo[];
-}
-
-export interface RelationInfo {
-  field: string;     // e.g. "category_id"
-  relatedResource: string;  // e.g. "categories"
-  label: string;     // e.g. "Category"
 }
 
 export interface MigrationField {
@@ -83,16 +79,15 @@ export interface ProjectAnalysis {
 
 export interface GeneratorOptions {
   outputDir: string;
-  language: 'id' | 'en';
   baseUrl: string;
   testUser: { email: string; password: string; name: string };
   gitea: {
     enabled: boolean;
-    serverUrl: string;      // e.g. http://gitea:3000
-    appHost: string;        // e.g. host.docker.internal:8000
-    playwrightImage: string; // e.g. mcr.microsoft.com/playwright:v1.49.1-jammy
-    branch: string;         // e.g. main
-    npmCacheVolume: string;  // e.g. playwright-npm-cache
-    reportVolume: string;    // e.g. playwright-report (Docker volume for HTML report)
+    serverUrl: string;
+    appHost: string;
+    playwrightImage: string;
+    branch: string;
+    npmCacheVolume: string;
+    reportVolume: string;
   };
 }

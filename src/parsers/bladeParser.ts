@@ -22,10 +22,8 @@ export function parseBladeView(filePath: string): ParsedView {
                  /<a[^>]*>[^<]*[Ee]dit[^<]*<\/a>/.test(content),
     hasCreateLink: /route\(['"][\w.]+\.create['"]/.test(content) ||
                    /<a[^>]*>[^<]*[Aa]dd new|[Cc]reate[^<]*<\/a>/.test(content),
-    formAction: extractFormAction(content),
     buttonLabels: extractButtonLabels(content),
     pageTitle: extractPageTitle(content),
-    createLinkText: extractCreateLinkText(content),
   };
 }
 

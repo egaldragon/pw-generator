@@ -57,8 +57,7 @@ function parseRouteFile(content: string): RouteInfo[] {
       name: routeName,
       method,
       uri,
-      controller: ctrlMatch?.[1],
-      action: ctrlMatch?.[2],
+      action: ctrlMatch?.[2] as string | undefined,
       middleware: mw,
       isResource: false,
     });
